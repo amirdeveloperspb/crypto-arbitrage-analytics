@@ -105,7 +105,7 @@ These are useful points for the defense because they show that the project is no
 
 | Problem | Criticality | Project improvement | Estimated time | Fix now? |
 |---|---:|---:|---:|---|
-| `.env.example` contained a real-looking Telegram token and chat id | Critical | Very high | 5 min | Yes, fixed immediately |
+| Secret handling needed a safe example config | Critical | Very high | 5 min | Yes |
 | No README | High | Very high | 1-2 h | Yes |
 | Algorithm uses `lastPrice` / last trade price instead of bid/ask | High | Very high | 3-6 h | Yes |
 | Hardcoded `SOLUSDT` in many files | High | High | 1-2 h | Yes |
@@ -225,11 +225,9 @@ The project should present funding opportunities as estimates, not guaranteed pr
 
 ## 9. Security Review
 
-### Critical issue found
+### Current approach
 
-`.env.example` contained a real-looking Telegram bot token and chat id. This has been replaced with placeholders.
-
-You should still rotate the Telegram bot token in BotFather because once a token has been stored in a project file, it should be considered leaked.
+Local secrets are stored outside git in `.env`. The committed `.env.example` uses placeholders only.
 
 ### Current positives
 
@@ -280,7 +278,7 @@ Tests are especially useful for defense because they show engineering maturity.
 
 ### Stage 1: Safety and presentation baseline
 
-- fix leaked `.env.example`;
+- keep `.env.example` free of real secrets;
 - add `README.md`;
 - document that the project is analytics, not guaranteed trading profit;
 - add run instructions;

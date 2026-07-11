@@ -111,9 +111,7 @@ Edit `.env` and fill only the values you need.
 | `TELEGRAM_ALERT_MIN_SCORE` | `70.0` | Minimum opportunity score for Telegram alerts. |
 | `TELEGRAM_ALERT_COOLDOWN_SECONDS` | `180` | Anti-spam cooldown for repeated alerts. |
 
-Security rule: never commit `.env`. Keep `.env.example` fake.
-
-If a real Telegram token was ever stored in a file, rotate it in BotFather.
+Security rule: never commit `.env`. Keep `.env.example` fake and store real tokens only in local environment variables.
 
 ## Run
 

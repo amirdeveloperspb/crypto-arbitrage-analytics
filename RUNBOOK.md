@@ -5,7 +5,7 @@ This file is a practical runbook. Use it when you forget the exact commands.
 ## 1. Open Terminal in the Project Folder
 
 ```bash
-cd /Users/amireleusizov/Downloads/first-_crypto-main/crypto-arbitrage-bot
+cd crypto-arbitrage-bot
 ```
 
 If your terminal line starts with `(.venv)`, the virtual environment is already active. If not, activate it:
