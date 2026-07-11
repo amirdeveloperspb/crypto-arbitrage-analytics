@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+data/
+debug_memory.py
+PROMPT_NEXT_CHAT.md
+*PROMPT*.md
+PRIVATE_NOTES.md
+.codex/
+.agents/
