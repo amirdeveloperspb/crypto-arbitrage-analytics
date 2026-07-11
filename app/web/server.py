@@ -9,6 +9,7 @@ from aiohttp import web
 
 from app.analytics.execution import ExecutionQualityAnalyzer
 from app.analytics.opportunities import summarize_prices
+from app.core.market_data import OrderBookLevel, OrderBookSnapshot
 
 
 class WebDashboard:
@@ -569,6 +570,145 @@ class WebDashboard:
             padding: 18px;
         }
 
+        .execution-lab {
+            display: grid;
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+            gap: 14px;
+            padding: 0 18px 18px;
+        }
+
+        .verdict {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .verdict-label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .verdict-value {
+            font-size: 20px;
+            font-weight: 780;
+        }
+
+        .verdict-detail {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .verdict.good {
+            background: var(--green-soft);
+            border-color: #b7dfca;
+        }
+
+        .verdict.risky {
+            background: #fff4df;
+            border-color: #efd8ad;
+        }
+
+        .verdict.bad {
+            background: var(--red-soft);
+            border-color: #ecc2c2;
+        }
+
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .scenario-button {
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 9px 10px;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 720;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .scenario-button.active {
+            border-color: #afcbdc;
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+
+        .waterfall {
+            display: grid;
+            gap: 8px;
+        }
+
+        .waterfall-row {
+            display: grid;
+            grid-template-columns: 128px minmax(0, 1fr) 86px;
+            gap: 10px;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .waterfall-track {
+            height: 9px;
+            border-radius: 999px;
+            background: #e5ebf0;
+            overflow: hidden;
+        }
+
+        .waterfall-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--blue);
+            border-radius: 999px;
+        }
+
+        .waterfall-fill.positive {
+            background: var(--green);
+        }
+
+        .waterfall-fill.negative {
+            background: var(--red);
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            padding: 0 18px 18px;
+        }
+
+        .book-title {
+            padding: 0 0 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 720;
+            text-transform: uppercase;
+        }
+
+        .fill-bar {
+            height: 7px;
+            min-width: 36px;
+            border-radius: 999px;
+            background: #e5ebf0;
+            overflow: hidden;
+        }
+
+        .fill-bar span {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: var(--blue);
+        }
+
         .fact {
             background: var(--surface);
             border: 1px solid var(--border-soft);
@@ -639,6 +779,17 @@ class WebDashboard:
 
             .facts {
                 grid-template-columns: 1fr;
+            }
+
+            .execution-lab,
+            .book-grid,
+            .scenario-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .waterfall-row {
+                grid-template-columns: 1fr;
+                gap: 5px;
             }
 
             .history-grid {
@@ -747,6 +898,70 @@ class WebDashboard:
                 <div class="fact">
                     <div class="fact-label">Max profitable size</div>
                     <div class="fact-value" id="exec-max-size">--</div>
+                </div>
+            </div>
+            <div class="execution-lab">
+                <div class="verdict" id="exec-verdict">
+                    <div class="verdict-label" data-i18n="verdictLabel">Execution verdict</div>
+                    <div class="verdict-value" id="exec-verdict-value">--</div>
+                    <div class="verdict-detail" id="exec-verdict-detail">--</div>
+                    <div class="scenario-grid">
+                        <button class="scenario-button active" type="button" data-scenario="live">Live market</button>
+                        <button class="scenario-button" type="button" data-scenario="profitable">Profitable</button>
+                        <button class="scenario-button" type="button" data-scenario="slippage">Slippage trap</button>
+                        <button class="scenario-button" type="button" data-scenario="liquidity">Low liquidity</button>
+                        <button class="scenario-button" type="button" data-scenario="stale">Stale data</button>
+                    </div>
+                </div>
+                <div class="waterfall">
+                    <div class="waterfall-row">
+                        <span data-i18n="rawSpread">Raw spread</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-raw"></div></div>
+                        <strong id="waterfall-raw">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="vwapSpread">VWAP spread</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-vwap"></div></div>
+                        <strong id="waterfall-vwap">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="feesImpact">Fees</span>
+                        <div class="waterfall-track"><div class="waterfall-fill negative" id="bar-fees"></div></div>
+                        <strong id="waterfall-fees">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="netResult">Net result</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-net"></div></div>
+                        <strong id="waterfall-net">--</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="book-grid">
+                <div>
+                    <div class="book-title" id="buy-book-title">Buy asks</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Price</th>
+                                <th>Filled</th>
+                                <th>Depth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buy-book-rows"></tbody>
+                    </table>
+                </div>
+                <div>
+                    <div class="book-title" id="sell-book-title">Sell bids</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Price</th>
+                                <th>Filled</th>
+                                <th>Depth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sell-book-rows"></tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -897,6 +1112,11 @@ class WebDashboard:
                 lastUpdate: 'Last update',
                 executionTitle: 'Order-book execution estimate',
                 executionNote: 'Walks ask/bid levels and compares raw spread with executable net result',
+                verdictLabel: 'Execution verdict',
+                rawSpread: 'Raw spread',
+                vwapSpread: 'VWAP spread',
+                feesImpact: 'Fees',
+                netResult: 'Net result',
                 historyTitle: 'History summary',
                 historyNote: 'Signals saved in SQLite during the last hour',
                 pricesTitle: 'Exchange prices',
@@ -911,6 +1131,10 @@ class WebDashboard:
                 stale: 'Stale',
                 filtered: 'Filtered',
                 belowThreshold: 'Below threshold',
+                executable: 'Executable',
+                risky: 'Risky',
+                rejected: 'Rejected',
+                noExecution: 'No executable route for the selected size.',
                 to: 'to',
             },
             ru: {
@@ -926,6 +1150,11 @@ class WebDashboard:
                 lastUpdate: 'Последнее обновление',
                 executionTitle: 'Оценка исполнения по стаканам',
                 executionNote: 'Проходит по уровням ask/bid и сравнивает сырой спред с чистым результатом',
+                verdictLabel: 'Вердикт исполнения',
+                rawSpread: 'Сырой спред',
+                vwapSpread: 'VWAP-спред',
+                feesImpact: 'Комиссии',
+                netResult: 'Чистый результат',
                 historyTitle: 'История сигналов',
                 historyNote: 'Сигналы, сохраненные в SQLite за последний час',
                 pricesTitle: 'Цены на биржах',
@@ -940,6 +1169,10 @@ class WebDashboard:
                 stale: 'Устарело',
                 filtered: 'Отфильтровано',
                 belowThreshold: 'Ниже порога',
+                executable: 'Исполнимо',
+                risky: 'Рискованно',
+                rejected: 'Отклонено',
+                noExecution: 'Нет исполнимого маршрута для выбранного объема.',
                 to: 'в',
             },
         };
@@ -1004,6 +1237,31 @@ class WebDashboard:
         const executionSizeInput = document.getElementById('execution-size');
         executionSizeInput.addEventListener('input', () => {
             executionSize = Number(executionSizeInput.value || 10);
+            executionScenario = 'live';
+            updateScenarioButtons();
+        });
+
+        let executionScenario = 'live';
+        const scenarioSizes = {
+            live: 10,
+            profitable: 10,
+            slippage: 20,
+            liquidity: 10,
+            stale: 10,
+        };
+        const updateScenarioButtons = () => {
+            document.querySelectorAll('[data-scenario]').forEach((button) => {
+                button.classList.toggle('active', button.dataset.scenario === executionScenario);
+            });
+        };
+        document.querySelectorAll('[data-scenario]').forEach((button) => {
+            button.addEventListener('click', () => {
+                executionScenario = button.dataset.scenario;
+                executionSize = scenarioSizes[executionScenario] || 10;
+                executionSizeInput.value = executionSize;
+                updateScenarioButtons();
+                updateExecution();
+            });
         });
 
         const resetOpportunity = () => {
@@ -1033,6 +1291,61 @@ class WebDashboard:
                 `;
                 tbody.appendChild(row);
             }
+        };
+
+        const percentText = (value) => value === null || value === undefined ? '--' : value.toFixed(4) + '%';
+
+        const setBar = (id, value, maxValue) => {
+            const element = document.getElementById(id);
+            const width = maxValue > 0 ? Math.min(100, Math.abs(value) / maxValue * 100) : 0;
+            element.style.width = width + '%';
+            element.className = 'waterfall-fill ' + (value >= 0 ? 'positive' : 'negative');
+        };
+
+        const renderFillRows = (targetId, fills) => {
+            const tbody = document.getElementById(targetId);
+            tbody.innerHTML = '';
+            if (!fills || fills.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td>--</td><td>--</td><td>--</td>';
+                tbody.appendChild(row);
+                return;
+            }
+            for (const fill of fills) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="price">$${fill.price.toFixed(4)}</td>
+                    <td>${fill.filled_size.toFixed(4)} / ${fill.available_size.toFixed(4)}</td>
+                    <td>
+                        <div class="fill-bar">
+                            <span style="width: ${Math.min(100, fill.fill_pct).toFixed(1)}%"></span>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            }
+        };
+
+        const resetExecution = (detail) => {
+            document.getElementById('exec-route').textContent = '--';
+            document.getElementById('exec-raw').textContent = '--';
+            document.getElementById('exec-vwap').textContent = '--';
+            document.getElementById('exec-net').textContent = '--';
+            document.getElementById('exec-max-size').textContent = '--';
+            document.getElementById('waterfall-raw').textContent = '--';
+            document.getElementById('waterfall-vwap').textContent = '--';
+            document.getElementById('waterfall-fees').textContent = '--';
+            document.getElementById('waterfall-net').textContent = '--';
+            setBar('bar-raw', 0, 1);
+            setBar('bar-vwap', 0, 1);
+            setBar('bar-fees', 0, 1);
+            setBar('bar-net', 0, 1);
+            renderFillRows('buy-book-rows', []);
+            renderFillRows('sell-book-rows', []);
+            const verdict = document.getElementById('exec-verdict');
+            verdict.className = 'verdict bad';
+            document.getElementById('exec-verdict-value').textContent = t('rejected');
+            document.getElementById('exec-verdict-detail').textContent = detail || t('noExecution');
         };
 
         const updateOpportunity = async () => {
@@ -1112,25 +1425,50 @@ class WebDashboard:
             try {
                 const response = await fetch(
                     '/api/execution?symbol=' + encodeURIComponent(selectedSymbol) +
-                    '&size=' + encodeURIComponent(executionSize)
+                    '&size=' + encodeURIComponent(executionSize) +
+                    '&scenario=' + encodeURIComponent(executionScenario)
                 );
                 const payload = await response.json();
                 const item = payload.execution;
                 if (!item) {
-                    document.getElementById('exec-route').textContent = '--';
-                    document.getElementById('exec-raw').textContent = '--';
-                    document.getElementById('exec-vwap').textContent = '--';
-                    document.getElementById('exec-net').textContent = '--';
-                    document.getElementById('exec-max-size').textContent = '--';
+                    resetExecution(payload.note);
                     return;
                 }
                 document.getElementById('exec-route').textContent = item.buy_on + ' ' + t('to') + ' ' + item.sell_on;
-                document.getElementById('exec-raw').textContent = item.raw_spread_pct.toFixed(4) + '%';
-                document.getElementById('exec-vwap').textContent = item.executable_spread_pct.toFixed(4) + '%';
+                document.getElementById('exec-raw').textContent = percentText(item.raw_spread_pct);
+                document.getElementById('exec-vwap').textContent = percentText(item.executable_spread_pct);
                 const net = document.getElementById('exec-net');
                 net.textContent = formatMoney(item.estimated_net_profit_usd);
                 net.className = 'fact-value ' + (item.estimated_net_profit_usd >= 0 ? 'positive' : 'negative');
                 document.getElementById('exec-max-size').textContent = item.max_profitable_size.toFixed(4);
+                document.getElementById('waterfall-raw').textContent = percentText(item.raw_spread_pct);
+                document.getElementById('waterfall-vwap').textContent = percentText(item.executable_spread_pct);
+                document.getElementById('waterfall-fees').textContent = '-$' + item.estimated_fees_usd.toFixed(2);
+                document.getElementById('waterfall-net').textContent = formatMoney(item.estimated_net_profit_usd);
+                const maxBar = Math.max(
+                    Math.abs(item.raw_spread_pct),
+                    Math.abs(item.executable_spread_pct),
+                    Math.abs(item.estimated_net_profit_usd / Math.max(1, item.buy_notional_usd) * 100),
+                    0.01
+                );
+                setBar('bar-raw', item.raw_spread_pct, maxBar);
+                setBar('bar-vwap', item.executable_spread_pct, maxBar);
+                setBar('bar-fees', -item.estimated_fees_usd / Math.max(1, item.buy_notional_usd) * 100, maxBar);
+                setBar('bar-net', item.estimated_net_profit_usd / Math.max(1, item.buy_notional_usd) * 100, maxBar);
+                renderFillRows('buy-book-rows', item.buy_fills);
+                renderFillRows('sell-book-rows', item.sell_fills);
+                document.getElementById('buy-book-title').textContent = 'Buy asks on ' + item.buy_on;
+                document.getElementById('sell-book-title').textContent = 'Sell bids on ' + item.sell_on;
+                const verdict = document.getElementById('exec-verdict');
+                const good = item.estimated_net_profit_usd > 0 && item.fill_ratio >= 1 && item.combined_slippage_pct < 0.2;
+                const risky = item.estimated_net_profit_usd > 0 && item.fill_ratio >= 1;
+                verdict.className = 'verdict ' + (good ? 'good' : risky ? 'risky' : 'bad');
+                document.getElementById('exec-verdict-value').textContent = good ? t('executable') : risky ? t('risky') : t('rejected');
+                document.getElementById('exec-verdict-detail').textContent =
+                    'Score ' + item.score.toFixed(1) + '/100. ' +
+                    'Fill ' + (item.fill_ratio * 100).toFixed(1) + '%. ' +
+                    'Slippage ' + item.combined_slippage_pct.toFixed(4) + '%. ' +
+                    (item.score_reasons || []).slice(0, 2).join(' ');
             } catch (error) {
                 console.error('Failed to load execution estimate', error);
             }
@@ -1241,21 +1579,122 @@ class WebDashboard:
     async def api_execution(self, request):
         symbol = self._request_symbol(request)
         size = float(request.query.get("size", "10")) if request else 10.0
+        scenario = request.query.get("scenario", "live") if request else "live"
         analyzer = ExecutionQualityAnalyzer(
             taker_fee_rate=self.taker_fee_rate,
             max_age_seconds=self.max_price_age_seconds,
         )
+        order_books = (
+            self._demo_execution_books(symbol, scenario)
+            if scenario != "live"
+            else self.state.get_order_books_for_symbol(symbol)
+        )
         result = analyzer.find_best_executable(
             symbol=symbol,
-            order_books=self.state.get_order_books_for_symbol(symbol),
+            order_books=order_books,
             target_size=size,
         )
+        note = "Execution estimate walks visible order-book levels and compares raw spread with VWAP net result."
+        if scenario == "liquidity" and result is None:
+            note = "Rejected: visible order-book depth cannot fill the selected size on both sides."
+        elif scenario == "stale" and result is None:
+            note = "Rejected: order-book snapshots are older than the allowed freshness window."
         return web.json_response({
             "symbol": symbol,
             "target_size": size,
+            "scenario": scenario,
             "execution": result,
-            "note": "Execution estimate walks visible order-book levels and compares raw spread with VWAP net result.",
+            "note": note,
         })
+
+    def _demo_execution_books(self, symbol: str, scenario: str) -> dict[str, OrderBookSnapshot]:
+        now = datetime.now().timestamp()
+        if scenario == "profitable":
+            return {
+                "DEMO_BUY": self._book(
+                    "DEMO_BUY",
+                    symbol,
+                    bids=[(99.90, 25), (99.80, 25)],
+                    asks=[(100.00, 25), (100.05, 25)],
+                    timestamp=now,
+                ),
+                "DEMO_SELL": self._book(
+                    "DEMO_SELL",
+                    symbol,
+                    bids=[(100.55, 25), (100.50, 25)],
+                    asks=[(100.65, 25), (100.70, 25)],
+                    timestamp=now,
+                ),
+            }
+        if scenario == "slippage":
+            return {
+                "DEMO_BUY": self._book(
+                    "DEMO_BUY",
+                    symbol,
+                    bids=[(98.00, 25), (97.80, 25)],
+                    asks=[(100.00, 1), (101.00, 40), (101.25, 40)],
+                    timestamp=now,
+                ),
+                "DEMO_SELL": self._book(
+                    "DEMO_SELL",
+                    symbol,
+                    bids=[(100.70, 1), (99.80, 40), (99.60, 40)],
+                    asks=[(103.00, 25), (103.20, 25)],
+                    timestamp=now,
+                ),
+            }
+        if scenario == "liquidity":
+            return {
+                "DEMO_BUY": self._book(
+                    "DEMO_BUY",
+                    symbol,
+                    bids=[(99.90, 3)],
+                    asks=[(100.00, 3)],
+                    timestamp=now,
+                ),
+                "DEMO_SELL": self._book(
+                    "DEMO_SELL",
+                    symbol,
+                    bids=[(101.00, 2)],
+                    asks=[(101.20, 2)],
+                    timestamp=now,
+                ),
+            }
+        if scenario == "stale":
+            stale_time = now - self.max_price_age_seconds - 5
+            return {
+                "DEMO_BUY": self._book(
+                    "DEMO_BUY",
+                    symbol,
+                    bids=[(99.90, 25)],
+                    asks=[(100.00, 25)],
+                    timestamp=stale_time,
+                ),
+                "DEMO_SELL": self._book(
+                    "DEMO_SELL",
+                    symbol,
+                    bids=[(101.00, 25)],
+                    asks=[(101.20, 25)],
+                    timestamp=stale_time,
+                ),
+            }
+        return self.state.get_order_books_for_symbol(symbol)
+
+    def _book(
+        self,
+        exchange: str,
+        symbol: str,
+        bids: list[tuple[float, float]],
+        asks: list[tuple[float, float]],
+        timestamp: float,
+    ) -> OrderBookSnapshot:
+        return OrderBookSnapshot(
+            exchange=exchange,
+            symbol=symbol,
+            bids=[OrderBookLevel(price=price, size=size) for price, size in bids],
+            asks=[OrderBookLevel(price=price, size=size) for price, size in asks],
+            timestamp=timestamp,
+        )
 
     async def api_history(self, request):
         symbol = self._request_symbol(request)

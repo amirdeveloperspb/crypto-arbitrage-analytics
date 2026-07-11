@@ -30,6 +30,13 @@ the project can:
 
 Detailed explanation: [EXECUTION_ALGORITHM.md](EXECUTION_ALGORITHM.md)
 
+The dashboard includes defense-ready execution scenarios:
+
+- `Profitable` shows a clean executable opportunity.
+- `Slippage trap` shows a raw spread that becomes unattractive after walking the book.
+- `Low liquidity` shows rejection when visible depth cannot fill the selected size.
+- `Stale data` shows rejection when snapshots are too old.
+
 ## What the App Does
 
 - connects to public exchange WebSocket streams;

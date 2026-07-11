@@ -37,6 +37,10 @@ class ExecutionQualityAnalyzerTest(unittest.TestCase):
         self.assertAlmostEqual(result["estimated_fees_usd"], 2.029)
         self.assertAlmostEqual(result["estimated_net_profit_usd"], 16.971)
         self.assertAlmostEqual(result["buy_slippage_pct"], 0.5)
+        self.assertEqual(result["buy_levels_used"], 2)
+        self.assertEqual(result["sell_levels_used"], 2)
+        self.assertEqual(result["buy_fills"][0]["filled_size"], 5)
+        self.assertEqual(result["sell_fills"][0]["filled_size"], 4)
         self.assertGreater(result["max_profitable_size"], 0)
 
     def test_rejects_stale_books(self):

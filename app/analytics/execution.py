@@ -14,6 +14,7 @@ class FillResult:
     slippage_pct: float
     fully_filled: bool
     levels_used: int
+    consumed_levels: list[dict]
 
 
 class ExecutionQualityAnalyzer:
@@ -131,6 +132,8 @@ class ExecutionQualityAnalyzer:
             "combined_slippage_pct": buy_fill.slippage_pct + sell_fill.slippage_pct,
             "buy_levels_used": buy_fill.levels_used,
             "sell_levels_used": sell_fill.levels_used,
+            "buy_fills": buy_fill.consumed_levels,
+            "sell_fills": sell_fill.consumed_levels,
             "max_profitable_size": max_profitable_size,
             "score": score_details["score"],
             "score_reasons": score_details["reasons"],
@@ -155,6 +158,7 @@ class ExecutionQualityAnalyzer:
         filled = 0.0
         notional = 0.0
         levels_used = 0
+        consumed_levels = []
 
         for level in levels:
             if remaining <= 0:
@@ -164,6 +168,13 @@ class ExecutionQualityAnalyzer:
             notional += quantity * level.price
             remaining -= quantity
             levels_used += 1
+            consumed_levels.append({
+                "price": level.price,
+                "available_size": level.size,
+                "filled_size": quantity,
+                "notional": quantity * level.price,
+                "fill_pct": quantity / level.size * 100,
+            })
 
         average_price = notional / filled if filled else 0.0
         slippage_pct = abs(average_price - reference_price) / reference_price * 100 if reference_price else 0.0
@@ -175,6 +186,7 @@ class ExecutionQualityAnalyzer:
             slippage_pct=slippage_pct,
             fully_filled=filled >= size,
             levels_used=levels_used,
+            consumed_levels=consumed_levels,
         )
 
     def _fresh_books(self, order_books: Mapping[str, OrderBookSnapshot]) -> dict[str, OrderBookSnapshot]:
