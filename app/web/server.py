@@ -434,7 +434,8 @@ class WebDashboard:
 
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
         th,
@@ -446,10 +447,39 @@ class WebDashboard:
         }
 
         th {
-            color: var(--muted);
+            color: #536174;
+            background: #f1f5f8;
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        tbody tr:nth-child(odd) {
+            background: #ffffff;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f6f8fa;
+        }
+
+        tbody tr {
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: #eef4f8;
+            box-shadow: inset 3px 0 0 var(--blue);
         }
 
         tr:last-child td {
