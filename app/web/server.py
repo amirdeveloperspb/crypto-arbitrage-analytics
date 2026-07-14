@@ -1511,7 +1511,6 @@ class WebDashboard:
         if (!localStorage.getItem('dashboardLanguage')) {
             document.getElementById('language-modal').classList.add('open');
         }
-        applyLanguage(language, false, false);
 
         for (const symbol of SYMBOLS) {
             const option = document.createElement('option');
@@ -1565,6 +1564,7 @@ class WebDashboard:
                 updateExecution();
             });
         });
+        applyLanguage(language, false, false);
 
         const resetOpportunity = () => {
             document.getElementById('buy-on').textContent = '--';
