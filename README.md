@@ -82,6 +82,8 @@ Main entry point:
 python -m app.main
 ```
 
+Start from here after downloading the archive: [START_HERE.md](START_HERE.md)
+
 Practical run instructions: [RUNBOOK.md](RUNBOOK.md)
 
 ## Setup
