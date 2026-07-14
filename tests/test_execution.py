@@ -41,6 +41,8 @@ class ExecutionQualityAnalyzerTest(unittest.TestCase):
         self.assertEqual(result["sell_levels_used"], 2)
         self.assertEqual(result["buy_fills"][0]["filled_size"], 5)
         self.assertEqual(result["sell_fills"][0]["filled_size"], 4)
+        self.assertIn("snapshot_skew_ms", result)
+        self.assertEqual(result["sync_quality"], "fresh")
         self.assertGreater(result["max_profitable_size"], 0)
 
     def test_rejects_stale_books(self):
@@ -57,6 +59,18 @@ class ExecutionQualityAnalyzerTest(unittest.TestCase):
         buy_book = self._book("BINANCE", bids=[(99, 10)], asks=[(100, 1)])
         sell_book = self._book("OKX", bids=[(103, 1)], asks=[(104, 10)])
         analyzer = ExecutionQualityAnalyzer(taker_fee_rate=0.001, max_age_seconds=2.0)
+
+        self.assertIsNone(analyzer.evaluate_route("SOLUSDT", buy_book, sell_book, target_size=3))
+
+    def test_rejects_routes_with_large_snapshot_skew(self):
+        now = time.time()
+        buy_book = self._book("BINANCE", bids=[(99, 10)], asks=[(100, 10)], ts=now)
+        sell_book = self._book("OKX", bids=[(103, 10)], asks=[(104, 10)], ts=now - 1.5)
+        analyzer = ExecutionQualityAnalyzer(
+            taker_fee_rate=0.001,
+            max_age_seconds=3.0,
+            max_snapshot_skew_seconds=1.0,
+        )
 
         self.assertIsNone(analyzer.evaluate_route("SOLUSDT", buy_book, sell_book, target_size=3))
 

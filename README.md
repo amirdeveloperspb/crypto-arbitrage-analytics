@@ -37,6 +37,12 @@ The dashboard includes defense-ready execution scenarios:
 - `Low liquidity` shows rejection when visible depth cannot fill the selected size.
 - `Stale data` shows rejection when snapshots are too old.
 
+The execution estimator also reports snapshot synchronization quality:
+
+- `snapshot_skew_ms` shows the timestamp difference between the buy-side and sell-side order books.
+- `sync_quality` marks the route as `fresh`, `acceptable`, or `weak`.
+- routes with excessive snapshot skew are rejected instead of being presented as reliable signals.
+
 ## What the App Does
 
 - connects to public exchange WebSocket streams;
@@ -230,6 +236,22 @@ python -m scripts.check_health
 ```
 
 This checks funding-rate REST APIs and exchange WebSocket streams.
+
+## Dataset Export
+
+SQLite history can be exported to CSV for later ML experiments:
+
+```bash
+python -m scripts.export_dataset --out data/opportunity_dataset.csv
+```
+
+Optional symbol filter:
+
+```bash
+python -m scripts.export_dataset --symbol SOLUSDT
+```
+
+The current model is an explainable scoring model. The export command prepares the data pipeline for a future trained model after enough real observations are collected.
 
 ## Telegram Commands
 

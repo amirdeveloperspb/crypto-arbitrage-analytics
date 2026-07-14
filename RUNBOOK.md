@@ -233,3 +233,13 @@ This gives:
 - dashboard available on Mac;
 - dashboard available on phone;
 - visible order-book execution estimate.
+
+## 11. Export Dataset for ML
+
+After the app has collected some history:
+
+```bash
+.venv/bin/python -m scripts.export_dataset --out data/opportunity_dataset.csv
+```
+
+This exports saved opportunity features from SQLite to CSV. It is intended for future model training after enough real observations are collected.

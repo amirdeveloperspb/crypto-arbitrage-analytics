@@ -24,11 +24,17 @@ class ExecutionQualityAnalyzer:
         max_age_seconds: float,
         min_net_profit_usd: float = 0.0,
         min_fill_ratio: float = 1.0,
+        max_snapshot_skew_seconds: float | None = None,
     ):
         self.taker_fee_rate = taker_fee_rate
         self.max_age_seconds = max_age_seconds
         self.min_net_profit_usd = min_net_profit_usd
         self.min_fill_ratio = min_fill_ratio
+        self.max_snapshot_skew_seconds = (
+            max_snapshot_skew_seconds
+            if max_snapshot_skew_seconds is not None
+            else max_age_seconds
+        )
 
     def simulate_buy(self, asks: Iterable[OrderBookLevel], size: float) -> FillResult:
         levels = sorted(asks, key=lambda item: item.price)
@@ -76,6 +82,10 @@ class ExecutionQualityAnalyzer:
     ) -> dict | None:
         buy_fill = self.simulate_buy(buy_book.asks, target_size)
         sell_fill = self.simulate_sell(sell_book.bids, target_size)
+        snapshot_skew_seconds = abs(buy_book.timestamp - sell_book.timestamp)
+        if snapshot_skew_seconds > self.max_snapshot_skew_seconds:
+            return None
+
         executable_size = min(buy_fill.filled_size, sell_fill.filled_size)
         if executable_size <= 0:
             return None
@@ -98,6 +108,11 @@ class ExecutionQualityAnalyzer:
         executable_spread = sell_fill.average_price - buy_fill.average_price
         executable_spread_pct = executable_spread / buy_fill.average_price * 100
         max_profitable_size = self._find_max_profitable_size(buy_book, sell_book, target_size)
+        data_age_seconds = {
+            buy_book.exchange: time.time() - buy_book.timestamp,
+            sell_book.exchange: time.time() - sell_book.timestamp,
+        }
+        sync_quality = self._sync_quality(snapshot_skew_seconds)
         score_details = self._score(
             net_profit=net_profit,
             executable_spread_pct=executable_spread_pct,
@@ -137,10 +152,10 @@ class ExecutionQualityAnalyzer:
             "max_profitable_size": max_profitable_size,
             "score": score_details["score"],
             "score_reasons": score_details["reasons"],
-            "data_age_seconds": {
-                buy_book.exchange: time.time() - buy_book.timestamp,
-                sell_book.exchange: time.time() - sell_book.timestamp,
-            },
+            "data_age_seconds": data_age_seconds,
+            "snapshot_skew_seconds": snapshot_skew_seconds,
+            "snapshot_skew_ms": round(snapshot_skew_seconds * 1000, 3),
+            "sync_quality": sync_quality,
             "limitations": [
                 "uses REST order-book snapshots, not guaranteed atomic cross-exchange state",
                 "does not include withdrawal/deposit fees",
@@ -196,6 +211,13 @@ class ExecutionQualityAnalyzer:
             for exchange, order_book in order_books.items()
             if now - order_book.timestamp <= self.max_age_seconds
         }
+
+    def _sync_quality(self, snapshot_skew_seconds: float) -> str:
+        if snapshot_skew_seconds <= 0.25:
+            return "fresh"
+        if snapshot_skew_seconds <= min(1.0, self.max_snapshot_skew_seconds):
+            return "acceptable"
+        return "weak"
 
     def _find_max_profitable_size(
         self,

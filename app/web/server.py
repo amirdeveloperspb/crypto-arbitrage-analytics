@@ -576,7 +576,7 @@ class WebDashboard:
 
         .history-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
             padding: 18px;
         }
@@ -984,6 +984,10 @@ class WebDashboard:
                 <div class="fact">
                     <div class="fact-label">Max profitable size</div>
                     <div class="fact-value" id="exec-max-size">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label">Snapshot sync</div>
+                    <div class="fact-value" id="exec-sync">--</div>
                 </div>
             </div>
             <div class="execution-lab">
@@ -1463,6 +1467,7 @@ class WebDashboard:
             document.getElementById('exec-vwap').textContent = '--';
             document.getElementById('exec-net').textContent = '--';
             document.getElementById('exec-max-size').textContent = '--';
+            document.getElementById('exec-sync').textContent = '--';
             document.getElementById('waterfall-raw').textContent = '--';
             document.getElementById('waterfall-vwap').textContent = '--';
             document.getElementById('waterfall-fees').textContent = '--';
@@ -1573,6 +1578,8 @@ class WebDashboard:
                 net.textContent = formatMoney(item.estimated_net_profit_usd);
                 net.className = 'fact-value ' + (item.estimated_net_profit_usd >= 0 ? 'positive' : 'negative');
                 document.getElementById('exec-max-size').textContent = item.max_profitable_size.toFixed(4);
+                document.getElementById('exec-sync').textContent =
+                    item.sync_quality + ' / ' + item.snapshot_skew_ms.toFixed(1) + ' ms';
                 document.getElementById('waterfall-raw').textContent = percentText(item.raw_spread_pct);
                 document.getElementById('waterfall-vwap').textContent = percentText(item.executable_spread_pct);
                 document.getElementById('waterfall-fees').textContent = '-$' + item.estimated_fees_usd.toFixed(2);
@@ -1600,6 +1607,7 @@ class WebDashboard:
                     'Score ' + item.score.toFixed(1) + '/100. ' +
                     'Fill ' + (item.fill_ratio * 100).toFixed(1) + '%. ' +
                     'Slippage ' + item.combined_slippage_pct.toFixed(4) + '%. ' +
+                    'Snapshot skew ' + item.snapshot_skew_ms.toFixed(1) + ' ms. ' +
                     (item.score_reasons || []).slice(0, 2).join(' ');
             } catch (error) {
                 console.error('Failed to load execution estimate', error);
