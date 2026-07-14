@@ -168,7 +168,8 @@ class WebDashboard:
             --red: #b84a4a;
             --red-soft: #f6dfdf;
             --amber: #9b6a22;
-            --shadow: 0 14px 40px rgba(38, 53, 71, 0.08);
+            --shadow: 0 16px 42px rgba(38, 53, 71, 0.08);
+            --shadow-soft: 0 6px 18px rgba(38, 53, 71, 0.06);
         }
 
         * {
@@ -178,7 +179,8 @@ class WebDashboard:
         body {
             margin: 0;
             background:
-                linear-gradient(180deg, rgba(255,255,255,0.78), rgba(238,242,245,0.94)),
+                radial-gradient(circle at top left, rgba(217,234,245,0.48), transparent 32%),
+                linear-gradient(180deg, rgba(255,255,255,0.82), rgba(238,242,245,0.96)),
                 var(--bg);
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
@@ -306,6 +308,11 @@ class WebDashboard:
             align-items: center;
             gap: 10px;
             margin: 16px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.64);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            box-shadow: var(--shadow-soft);
         }
 
         .symbol-select {
@@ -317,6 +324,7 @@ class WebDashboard:
             padding: 9px 11px;
             font: inherit;
             font-weight: 650;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
         }
 
         .filter-input {
@@ -327,6 +335,7 @@ class WebDashboard:
             color: var(--text);
             padding: 9px 11px;
             font: inherit;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
         }
 
         .size-input {
@@ -337,6 +346,7 @@ class WebDashboard:
             color: var(--text);
             padding: 9px 11px;
             font: inherit;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
         }
 
         .connection-label {
@@ -376,6 +386,7 @@ class WebDashboard:
             border: 1px solid var(--border);
             border-radius: 8px;
             box-shadow: var(--shadow);
+            overflow: hidden;
         }
 
         .metric {
@@ -716,6 +727,76 @@ class WebDashboard:
             padding: 11px;
         }
 
+        .ml-insight {
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: linear-gradient(180deg, #ffffff, #f6f9fb);
+            padding: 14px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .ml-insight-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .ml-title {
+            font-size: 13px;
+            font-weight: 780;
+        }
+
+        .ml-model {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .ml-scoreline {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr) 54px;
+            gap: 9px;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            margin: 8px 0;
+        }
+
+        .ml-track {
+            height: 8px;
+            border-radius: 999px;
+            background: #e5ebf0;
+            overflow: hidden;
+        }
+
+        .ml-fill {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: var(--blue);
+            border-radius: 999px;
+        }
+
+        .ml-risk-list {
+            margin: 10px 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 6px;
+        }
+
+        .ml-risk-list li {
+            color: var(--muted);
+            background: #eef2f5;
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            padding: 7px 8px;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
         .fact-label {
             color: var(--muted);
             font-size: 12px;
@@ -788,6 +869,11 @@ class WebDashboard:
             }
 
             .waterfall-row {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+
+            .ml-scoreline {
                 grid-template-columns: 1fr;
                 gap: 5px;
             }
@@ -1078,6 +1164,27 @@ class WebDashboard:
                         </div>
                     </div>
 
+                    <div class="ml-insight">
+                        <div class="ml-insight-header">
+                            <div>
+                                <div class="ml-title">ML signal analysis</div>
+                                <div class="ml-model" id="ml-model">--</div>
+                            </div>
+                            <div class="pill" id="ml-recommendation">--</div>
+                        </div>
+                        <div class="ml-scoreline">
+                            <span>Probability</span>
+                            <div class="ml-track"><span class="ml-fill" id="ml-probability-bar"></span></div>
+                            <strong id="ml-probability">--</strong>
+                        </div>
+                        <div class="ml-scoreline">
+                            <span>Confidence</span>
+                            <div class="ml-track"><span class="ml-fill" id="ml-confidence-bar"></span></div>
+                            <strong id="ml-confidence">--</strong>
+                        </div>
+                        <ul class="ml-risk-list" id="ml-risk-list"></ul>
+                    </div>
+
                     <div class="warning">
                         Estimate uses top-of-book bid/ask. Real execution still needs deeper order-book simulation, slippage, and transfer costs.
                     </div>
@@ -1273,6 +1380,30 @@ class WebDashboard:
             document.getElementById('spread-pct').textContent = '--';
             document.getElementById('score').textContent = '--';
             document.getElementById('quality').textContent = '--';
+            renderMlInsight(null);
+        };
+
+        const renderMlInsight = (quality) => {
+            const probability = quality ? quality.probability || 0 : 0;
+            const confidence = quality ? quality.confidence || 0 : 0;
+            document.getElementById('ml-model').textContent = quality ? quality.model : '--';
+            document.getElementById('ml-probability').textContent = quality ? Math.round(probability * 100) + '%' : '--';
+            document.getElementById('ml-confidence').textContent = quality ? Math.round(confidence * 100) + '%' : '--';
+            document.getElementById('ml-probability-bar').style.width = Math.round(probability * 100) + '%';
+            document.getElementById('ml-confidence-bar').style.width = Math.round(confidence * 100) + '%';
+
+            const recommendation = document.getElementById('ml-recommendation');
+            recommendation.textContent = quality ? quality.recommendation : '--';
+            recommendation.className = 'pill ' + (quality && quality.quality === 'strong' ? 'live' : 'stale');
+
+            const list = document.getElementById('ml-risk-list');
+            list.innerHTML = '';
+            const risks = quality ? quality.risk_factors || [] : [];
+            for (const risk of risks.slice(0, 4)) {
+                const item = document.createElement('li');
+                item.textContent = risk;
+                list.appendChild(item);
+            }
         };
 
         const renderRows = (exchanges) => {
@@ -1379,6 +1510,7 @@ class WebDashboard:
                 document.getElementById('spread-pct').textContent = item.spread_pct.toFixed(3) + '%';
                 document.getElementById('score').textContent = item.score.toFixed(1) + ' / 100';
                 document.getElementById('quality').textContent = quality ? quality.quality : '--';
+                renderMlInsight(quality);
             } catch (error) {
                 console.error('Failed to load opportunity', error);
             }

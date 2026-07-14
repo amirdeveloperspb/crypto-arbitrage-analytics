@@ -36,7 +36,25 @@ class OpportunityAnalyzerTest(unittest.TestCase):
         })
 
         self.assertEqual(quality["quality"], "strong")
-        self.assertEqual(quality["model"], "heuristic_baseline")
+        self.assertEqual(quality["model"], "fast_explainable_quality_v2")
+        self.assertGreater(quality["probability"], 0.65)
+        self.assertGreater(quality["confidence"], 0.5)
+        self.assertIn("recommendation", quality)
+
+    def test_quality_model_exposes_risk_factors_for_weak_signal(self):
+        quality = OpportunityQualityModel().predict_quality({
+            "score": 20,
+            "estimated_net_profit_usd": -1.0,
+            "gross_profit_usd": 0.3,
+            "estimated_fees_usd": 1.3,
+            "spread_pct": 0.01,
+            "buy_size": 0.5,
+            "sell_size": 0.4,
+        })
+
+        self.assertEqual(quality["quality"], "weak")
+        self.assertLess(quality["probability"], 0.5)
+        self.assertTrue(quality["risk_factors"])
 
 
 if __name__ == "__main__":
