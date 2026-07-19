@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Arbitrage Analytics</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+    <div class="language-modal" id="language-modal">
+        <div class="language-card">
+            <h2 data-i18n="languageTitle">Choose language / Выберите язык</h2>
+            <p data-i18n="languageText">Select dashboard and documentation language.</p>
+            <div class="language-choice">
+                <button type="button" data-set-lang="en">English</button>
+                <button type="button" data-set-lang="ru">Русский</button>
+            </div>
+        </div>
+    </div>
+    <main class="shell">
+        <section class="topbar">
+            <div>
+                <div class="eyebrow" data-i18n="eyebrow">Market intelligence</div>
+                <h1 data-i18n="title">Crypto Arbitrage Analytics</h1>
+                <p class="subtitle" data-i18n="subtitle">
+                    Real-time multi-symbol monitor across Binance, Bybit, OKX, and Gate.io.
+                    The dashboard highlights bid/ask-based estimates, scoring, and stale data.
+                </p>
+            </div>
+            <div class="top-actions">
+                <div class="language-switch">
+                    <button type="button" data-set-lang="en" id="lang-en">EN</button>
+                    <button type="button" data-set-lang="ru" id="lang-ru">RU</button>
+                </div>
+                <div class="connection">
+                    <div class="connection-label">WebSocket</div>
+                    <div class="connection-value">
+                        <span class="dot" id="ws-dot"></span>
+                        <span id="ws-status" data-i18n="disconnected">Disconnected</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="toolbar">
+            <label for="symbol-select" class="panel-note" data-i18n="symbol">Symbol</label>
+            <select id="symbol-select" class="symbol-select"></select>
+            <label for="min-spread" class="panel-note" data-i18n="minSpread">Min spread %</label>
+            <input id="min-spread" class="filter-input" type="number" min="0" step="0.01">
+            <label for="execution-size" class="panel-note" data-i18n="executionSize">Execution size</label>
+            <input id="execution-size" class="size-input" type="number" min="0.01" step="0.1" value="10">
+            <a href="/docs/en" id="docs-link" class="panel-note">Docs</a>
+        </section>
+
+        <section class="summary-grid">
+            <div class="panel metric">
+                <div class="metric-label" data-i18n="bestSpread">Best spread</div>
+                <div class="metric-value" id="spread">Waiting</div>
+                <div class="metric-help" id="spread-route" data-i18n="noFreshRoute">No fresh route yet</div>
+            </div>
+            <div class="panel metric">
+                <div class="metric-label" data-i18n="freshExchanges">Fresh exchanges</div>
+                <div class="metric-value" id="fresh-count">0 / 4</div>
+                <div class="metric-help" data-i18n="freshHelp">Only fresh prices are used for spread</div>
+            </div>
+            <div class="panel metric">
+                <div class="metric-label" data-i18n="lastUpdate">Last update</div>
+                <div class="metric-value" id="last-update">--</div>
+                <div class="metric-help" data-i18n="localTime">Local dashboard time</div>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top: 14px;">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title" data-i18n="executionTitle">Order-book execution estimate</div>
+                    <div class="panel-note" data-i18n="executionNote">Walks ask/bid levels and compares raw spread with executable net result</div>
+                </div>
+            </div>
+            <div class="history-grid">
+                <div class="fact">
+                    <div class="fact-label" data-i18n="route">Route</div>
+                    <div class="fact-value" id="exec-route">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="rawSpread">Raw spread</div>
+                    <div class="fact-value" id="exec-raw">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="vwapSpread">VWAP spread</div>
+                    <div class="fact-value" id="exec-vwap">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="netResult">Net result</div>
+                    <div class="fact-value" id="exec-net">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="maxProfitableSize">Max profitable size</div>
+                    <div class="fact-value" id="exec-max-size">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="snapshotSync">Snapshot sync</div>
+                    <div class="fact-value" id="exec-sync">--</div>
+                </div>
+            </div>
+            <div class="execution-lab">
+                <div class="verdict" id="exec-verdict">
+                    <div class="verdict-label" data-i18n="verdictLabel">Execution verdict</div>
+                    <div class="verdict-value" id="exec-verdict-value">--</div>
+                    <div class="verdict-detail" id="exec-verdict-detail">--</div>
+                    <div class="scenario-grid">
+                        <button class="scenario-button active" type="button" data-scenario="live" data-i18n="scenarioLive">Live market</button>
+                        <button class="scenario-button" type="button" data-scenario="profitable" data-i18n="scenarioProfitable">Profitable</button>
+                        <button class="scenario-button" type="button" data-scenario="slippage" data-i18n="scenarioSlippage">Slippage trap</button>
+                        <button class="scenario-button" type="button" data-scenario="liquidity" data-i18n="scenarioLiquidity">Low liquidity</button>
+                        <button class="scenario-button" type="button" data-scenario="stale" data-i18n="scenarioStale">Stale data</button>
+                    </div>
+                </div>
+                <div class="waterfall">
+                    <div class="waterfall-row">
+                        <span data-i18n="rawSpread">Raw spread</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-raw"></div></div>
+                        <strong id="waterfall-raw">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="vwapSpread">VWAP spread</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-vwap"></div></div>
+                        <strong id="waterfall-vwap">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="feesImpact">Fees</span>
+                        <div class="waterfall-track"><div class="waterfall-fill negative" id="bar-fees"></div></div>
+                        <strong id="waterfall-fees">--</strong>
+                    </div>
+                    <div class="waterfall-row">
+                        <span data-i18n="netResult">Net result</span>
+                        <div class="waterfall-track"><div class="waterfall-fill" id="bar-net"></div></div>
+                        <strong id="waterfall-net">--</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="book-grid">
+                <div>
+                    <div class="book-title" id="buy-book-title" data-i18n="buyAsks">Buy asks</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="price">Price</th>
+                                <th data-i18n="filled">Filled</th>
+                                <th data-i18n="depth">Depth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buy-book-rows"></tbody>
+                    </table>
+                </div>
+                <div>
+                    <div class="book-title" id="sell-book-title" data-i18n="sellBids">Sell bids</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="price">Price</th>
+                                <th data-i18n="filled">Filled</th>
+                                <th data-i18n="depth">Depth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sell-book-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top: 14px;">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title" data-i18n="historyTitle">History summary</div>
+                    <div class="panel-note" data-i18n="historyNote">Signals saved in SQLite during the last hour</div>
+                </div>
+            </div>
+            <div class="history-grid">
+                <div class="fact">
+                    <div class="fact-label" data-i18n="signals">Signals</div>
+                    <div class="fact-value" id="history-count">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="maxSpread">Max spread</div>
+                    <div class="fact-value" id="history-max-spread">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="avgSpread">Avg spread</div>
+                    <div class="fact-value" id="history-avg-spread">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="maxNet">Max net</div>
+                    <div class="fact-value" id="history-max-net">--</div>
+                </div>
+                <div class="fact">
+                    <div class="fact-label" data-i18n="avgScore">Avg score</div>
+                    <div class="fact-value" id="history-avg-score">--</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th data-i18n="time">Time</th>
+                        <th data-i18n="route">Route</th>
+                        <th data-i18n="spread">Spread</th>
+                        <th data-i18n="net">Net</th>
+                        <th data-i18n="score">Score</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-opportunities"></tbody>
+            </table>
+        </section>
+
+        <section class="content-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <div>
+                        <div class="panel-title" data-i18n="pricesTitle">Exchange prices</div>
+                        <div class="panel-note" data-i18n="pricesNote">Top-of-book bid/ask from public streams</div>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-i18n="exchange">Exchange</th>
+                            <th data-i18n="bid">Bid</th>
+                            <th data-i18n="ask">Ask</th>
+                            <th data-i18n="age">Age</th>
+                            <th data-i18n="status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exchange-rows"></tbody>
+                </table>
+            </div>
+
+            <aside class="panel">
+                <div class="panel-header">
+                    <div>
+                        <div class="panel-title" data-i18n="opportunityTitle">Estimated opportunity</div>
+                        <div class="panel-note" data-i18n="opportunityNote">Simple fee-aware calculation</div>
+                    </div>
+                </div>
+                <div class="opportunity-body">
+                    <div class="route">
+                        <div class="route-box">
+                            <div class="route-label" data-i18n="buyOn">Buy on</div>
+                            <div class="route-value" id="buy-on">--</div>
+                        </div>
+                        <div class="arrow" data-i18n="to">to</div>
+                        <div class="route-box">
+                            <div class="route-label" data-i18n="sellOn">Sell on</div>
+                            <div class="route-value" id="sell-on">--</div>
+                        </div>
+                    </div>
+
+                    <div class="facts">
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="grossPnl">Gross PnL</div>
+                            <div class="fact-value" id="gross-pnl">--</div>
+                        </div>
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="feesImpact">Fees</div>
+                            <div class="fact-value" id="fees">--</div>
+                        </div>
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="netEstimate">Net estimate</div>
+                            <div class="fact-value" id="net-pnl">--</div>
+                        </div>
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="spread">Spread</div>
+                            <div class="fact-value" id="spread-pct">--</div>
+                        </div>
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="score">Score</div>
+                            <div class="fact-value" id="score">--</div>
+                        </div>
+                        <div class="fact">
+                            <div class="fact-label" data-i18n="mlQuality">ML quality</div>
+                            <div class="fact-value" id="quality">--</div>
+                        </div>
+                    </div>
+
+                    <div class="ml-insight">
+                        <div class="ml-insight-header">
+                            <div>
+                                <div class="ml-title" data-i18n="mlSignalAnalysis">ML signal analysis</div>
+                                <div class="ml-model" id="ml-model">--</div>
+                            </div>
+                            <div class="pill" id="ml-recommendation">--</div>
+                        </div>
+                        <div class="ml-scoreline">
+                            <span data-i18n="probability">Probability</span>
+                            <div class="ml-track"><span class="ml-fill" id="ml-probability-bar"></span></div>
+                            <strong id="ml-probability">--</strong>
+                        </div>
+                        <div class="ml-scoreline">
+                            <span data-i18n="confidence">Confidence</span>
+                            <div class="ml-track"><span class="ml-fill" id="ml-confidence-bar"></span></div>
+                            <strong id="ml-confidence">--</strong>
+                        </div>
+                        <ul class="ml-risk-list" id="ml-risk-list"></ul>
+                    </div>
+
+                    <div class="warning" data-i18n="topBookWarning">
+                        Estimate uses top-of-book bid/ask. Real execution still needs deeper order-book simulation, slippage, and transfer costs.
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <div class="footer">
+            <span data-i18n="localDashboard">Local analytical dashboard</span>
+            <span data-i18n="apiFooter">API: /api/health /api/prices /api/opportunity</span>
+        </div>
+    </main>
+
+    <script>window.DASHBOARD_CONFIG = __DASHBOARD_CONFIG__;</script>
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

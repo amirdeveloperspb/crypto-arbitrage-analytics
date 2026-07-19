@@ -14,3 +14,4 @@ private/
 local_notes/
 *.local.md
 *.scratch.md
+output/
